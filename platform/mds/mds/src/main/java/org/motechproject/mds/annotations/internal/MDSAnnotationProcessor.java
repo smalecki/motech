@@ -26,6 +26,7 @@ public class MDSAnnotationProcessor {
 
     private EntityProcessor entityProcessor;
     private LookupProcessor lookupProcessor;
+    private EntityExtensionProcessor entityExtensionProcessor;
     private InstanceLifecycleListenerProcessor instanceLifecycleListenerProcessor;
     private InstanceLifecycleListenersProcessor instanceLifecycleListenersProcessor;
 
@@ -36,6 +37,9 @@ public class MDSAnnotationProcessor {
 
         entityProcessor.execute(bundle, schemaHolder);
         List<EntityProcessorOutput> entityProcessorOutput = entityProcessor.getProcessingResult();
+
+        entityExtensionProcessor.execute(bundle, entityProcessorOutput);
+        entityProcessorOutput = entityExtensionProcessor.getProcessingResult();
 
         lookupProcessor.setEntityProcessingResult(entityProcessorOutput);
         lookupProcessor.execute(bundle, schemaHolder);
@@ -64,6 +68,11 @@ public class MDSAnnotationProcessor {
     @Autowired
     public void setEntityProcessor(EntityProcessor entityProcessor) {
         this.entityProcessor = entityProcessor;
+    }
+
+    @Autowired
+    public void setEntityExtensionProcessor(EntityExtensionProcessor entityExtensionProcessor) {
+        this.entityExtensionProcessor = entityExtensionProcessor;
     }
 
     @Autowired

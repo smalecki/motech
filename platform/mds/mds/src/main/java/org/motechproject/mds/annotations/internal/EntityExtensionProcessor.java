@@ -7,19 +7,18 @@ import org.motechproject.mds.annotations.EntityExtension;
 import org.motechproject.mds.annotations.ReadAccess;
 import org.motechproject.mds.domain.MdsEntity;
 import org.motechproject.mds.domain.MdsVersionedEntity;
-import org.motechproject.mds.dto.AdvancedSettingsDto;
-import org.motechproject.mds.dto.EntityDto;
-import org.motechproject.mds.dto.FieldDto;
-import org.motechproject.mds.dto.MetadataDto;
-import org.motechproject.mds.dto.RestOptionsDto;
-import org.motechproject.mds.dto.TrackingDto;
+import org.motechproject.mds.dto.*;
+import org.motechproject.mds.ex.entity.EntityNotExtendException;
+import org.motechproject.mds.ex.entity.EntityNotFoundException;
 import org.motechproject.mds.helper.EntityDefaultFieldsHelper;
 import org.motechproject.mds.javassist.MotechClassPool;
 import org.motechproject.mds.reflections.ReflectionsUtil;
-import org.motechproject.mds.util.ClassName;
+import org.motechproject.mds.service.EntityService;
+import org.motechproject.mds.service.TypeService;
 import org.motechproject.mds.util.Constants;
 import org.motechproject.mds.util.SecurityMode;
 import org.motechproject.osgi.web.util.BundleHeaders;
+import org.osgi.framework.Bundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,35 +28,24 @@ import org.springframework.stereotype.Component;
 import javax.jdo.annotations.Version;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-import static org.motechproject.mds.util.Constants.AnnotationFields.HISTORY;
-import static org.motechproject.mds.util.Constants.AnnotationFields.MAX_FETCH_DEPTH;
-import static org.motechproject.mds.util.Constants.AnnotationFields.MODULE;
-import static org.motechproject.mds.util.Constants.AnnotationFields.NAME;
-import static org.motechproject.mds.util.Constants.AnnotationFields.NAMESPACE;
-import static org.motechproject.mds.util.Constants.AnnotationFields.NON_EDITABLE;
-import static org.motechproject.mds.util.Constants.AnnotationFields.TABLE_NAME;
+import static org.motechproject.mds.util.Constants.AnnotationFields.*;
 
 /**
- * The <code>EntityProcessor</code> provides a mechanism, allowing adding public classes from other
- * modules as entities in the MDS module. When the entity is successfully added into MDS database,
- * related processors are starting to process the class definitions in order to add other
- * information into the MDS database.
+ * The <code>EntityExtensionProcessor</code> provides a mechanism for processing
+ * {@link EntityExtension} annotation of a single
+ * class with {@link org.motechproject.mds.annotations.Entity} annotation.
  *
+ * @see EntityExtension
  * @see org.motechproject.mds.annotations.Entity
  */
 @Component
-class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(EntityProcessor.class);
+public class EntityExtensionProcessor extends AbstractListProcessor<EntityExtension, EntityDto> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(EntityExtensionProcessor.class);
 
+    private EntityService entityService;
+    private TypeService typeService;
     private FieldProcessor fieldProcessor;
     private UIFilterableProcessor uiFilterableProcessor;
     private UIDisplayableProcessor uiDisplayableProcessor;
@@ -65,12 +53,11 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
     private RestOperationsProcessor restOperationsProcessor;
     private CrudEventsProcessor crudEventsProcessor;
     private NonEditableProcessor nonEditableProcessor;
-
     private List<EntityProcessorOutput> processingResult;
 
     @Override
-    public Class<Entity> getAnnotationType() {
-        return Entity.class;
+    public Class<EntityExtension> getAnnotationType() {
+        return EntityExtension.class;
     }
 
     @Override
@@ -85,9 +72,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
 
     @Override
     protected void process(AnnotatedElement element) {
-        BundleHeaders bundleHeaders = new BundleHeaders(getBundle());
-
-        EntityProcessorOutput entityProcessorOutput = new EntityProcessorOutput();
+        EntityProcessorOutput entityProcessorOutput = null;
 
         Class clazz = (Class) element;
         Class<Entity> ann = ReflectionsUtil.getAnnotationClass(clazz, Entity.class);
@@ -96,56 +81,47 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         Class<EntityExtension> annExt = ReflectionsUtil.getAnnotationClass(clazz, EntityExtension.class);
         Annotation annotationExt = AnnotationUtils.findAnnotation(clazz, annExt);
 
-        if (null != annotation && null == annotationExt) {
+        if (null != annotationExt) {
             String className = clazz.getName();
-
-            String name = ReflectionsUtil.getAnnotationValue(
-                    annotation, NAME, ClassName.getSimpleName(className)
-            );
-            String module = ReflectionsUtil.getAnnotationValue(
-                    annotation, MODULE, bundleHeaders.getName(), bundleHeaders.getSymbolicName()
-            );
-            String bundleSymbolicName = getBundle().getSymbolicName();
-            String namespace = ReflectionsUtil.getAnnotationValue(annotation, NAMESPACE);
-            String tableName = ReflectionsUtil.getAnnotationValue(annotation, TABLE_NAME);
 
             boolean recordHistory = Boolean.parseBoolean(ReflectionsUtil.getAnnotationValue(annotation, HISTORY));
             boolean nonEditable = Boolean.parseBoolean(ReflectionsUtil.getAnnotationValue(annotation, NON_EDITABLE));
 
-            EntityDto entity = getSchemaHolder().getEntityByClassName(className);
-            RestOptionsDto restOptions = new RestOptionsDto();
-            TrackingDto tracking = new TrackingDto();
+            String extendedClassName = clazz.getSuperclass().getName();
+            if (Object.class.getName().equalsIgnoreCase(extendedClassName)) {
+                throw new EntityNotExtendException(className);
+            }
+
+            EntityDto entity;
+            RestOptionsDto restOptions;
+            TrackingDto tracking;
+            Collection<FieldDto> existFields;
             Collection<FieldDto> fields;
 
-            if (entity == null) {
-                LOGGER.debug("Creating DDE for {}", className);
-
-                entity = new EntityDto(
-                        null, className, name, module, namespace, tableName, recordHistory,
-                        SecurityMode.EVERYONE, null, null, null, clazz.getSuperclass().getName(),
-                        Modifier.isAbstract(clazz.getModifiers()), false, bundleSymbolicName, null
-                );
-            } else {
-                LOGGER.debug("DDE for {} already exists, updating if necessary", className);
-
-                AdvancedSettingsDto advancedSettings = getSchemaHolder().getAdvancedSettings(className);
-                restOptions = advancedSettings.getRestOptions();
-                tracking = advancedSettings.getTracking();
-                entity.setBundleSymbolicName(bundleSymbolicName);
-                entity.setModule(module);
-
-                //if entity was extend, revert changes, until entityExtensionProcessor will start.
-                //necessary, because we don't know if this entity is still extended
-                if (!className.equals(entity.getClassName())) {
-                    entity.setClassName(className);
-                    entity.setExtensionClass(null);
+            for (EntityProcessorOutput epo : processingResult) {
+                if (epo.getEntityProcessingResult().getClassName().equals(extendedClassName)) {
+                    entityProcessorOutput = epo;
+                    break;
                 }
+            }
+
+            if (entityProcessorOutput == null) {
+                LOGGER.debug("Extended entity {} should already exist", extendedClassName);
+                throw new EntityNotFoundException(extendedClassName);
+            } else {
+                LOGGER.debug("DDE for {} already exists, updating if necessary", extendedClassName);
+
+                entity = entityProcessorOutput.getEntityProcessingResult();
+                restOptions = entityProcessorOutput.getRestProcessingResult();
+                tracking = entityProcessorOutput.getTrackingProcessingResult();
+                existFields = entityProcessorOutput.getFieldProcessingResult();
             }
 
             if (!tracking.isModifiedByUser()) {
                 tracking.setRecordHistory(recordHistory);
                 tracking.setNonEditable(nonEditable);
             }
+            entity.setExtensionClass(className);
 
             setSecurityOptions(element, entity);
 
@@ -154,7 +130,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
 
             entityProcessorOutput.setEntityProcessingResult(entity);
 
-            fields = findFields(clazz, entity);
+            fields = findFields(clazz, entity, existFields);
 
             String versionField = getVersionFieldName(clazz);
             addVersionMetadata(fields, versionField);
@@ -167,10 +143,16 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
             updateResults(entityProcessorOutput, clazz, fields, restOptions, tracking, versionField);
 
             add(entity);
-            processingResult.add(entityProcessorOutput);
-            MotechClassPool.registerDDE(entity.getClassName());
+            for (EntityProcessorOutput epo : processingResult) {
+                if (epo.getEntityProcessingResult().getClassName().equals(extendedClassName)) {
+                    processingResult.remove(epo);
+                    processingResult.add(entityProcessorOutput);
+                    break;
+                }
+            }
+            MotechClassPool.registerDDE(entity.getExtensionClass());
         } else {
-            LOGGER.debug("Did not find Entity annotation in class: {}", clazz.getName());
+            LOGGER.debug("Did not find EntityExtension annotation in class: {}", clazz.getName());
         }
     }
 
@@ -206,9 +188,8 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
     }
 
     private void addDefaultFields(EntityDto entity, Collection<FieldDto> fields) {
-        if (!MdsEntity.class.getName().equalsIgnoreCase(entity.getSuperClass()) &&
-                !MdsVersionedEntity.class.getName().equalsIgnoreCase(entity.getSuperClass())) {
-            fields.addAll(EntityDefaultFieldsHelper.defaultFields(getSchemaHolder()));
+        if (!MdsEntity.class.getName().equalsIgnoreCase(entity.getSuperClass()) && !MdsVersionedEntity.class.getName().equalsIgnoreCase(entity.getSuperClass())) {
+            fields.addAll(EntityDefaultFieldsHelper.defaultFields(typeService));
         }
     }
 
@@ -231,8 +212,8 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
     }
 
     private void updateUiChangedFields(Collection<FieldDto> fieldsToUpdate, String entityClassName) {
-        if (getSchemaHolder().getEntityByClassName(entityClassName) != null) {
-            List<FieldDto> currentFields = getSchemaHolder().getFields(entityClassName);
+        if (entityService.getEntityByClassName(entityClassName) != null) {
+            List<FieldDto> currentFields = entityService.getEntityFieldsByClassName(entityClassName);
             for (FieldDto field : fieldsToUpdate) {
                 FieldDto currentField = getCurrentField(currentFields, field.getBasic().getName());
                 if (currentField != null && currentField.isUiChanged()) {
@@ -252,11 +233,11 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         return null;
     }
 
-    @Override
-    protected void beforeExecution() {
-        processingResult = new ArrayList<>();
-        super.beforeExecution();
+    protected void execute(Bundle bundle, List<EntityProcessorOutput> processingResult) {
+        this.processingResult = processingResult;
+        super.execute(bundle);
     }
+
 
     @Override
     protected void afterExecution() {
@@ -266,33 +247,34 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
     private RestOptionsDto processRestOperations(Class clazz, RestOptionsDto restOptions) {
         restOperationsProcessor.setClazz(clazz);
         restOperationsProcessor.setRestOptions(restOptions);
-        restOperationsProcessor.execute(getBundle(), getSchemaHolder());
+        restOperationsProcessor.execute(getBundle());
         return restOperationsProcessor.getProcessingResult();
     }
 
     private TrackingDto processCrudEvents(Class clazz, TrackingDto tracking) {
         crudEventsProcessor.setClazz(clazz);
         crudEventsProcessor.setTrackingDto(tracking);
-        crudEventsProcessor.execute(getBundle(), getSchemaHolder());
+        crudEventsProcessor.execute(getBundle());
         return crudEventsProcessor.getProcessingResult();
     }
 
-    private Collection<FieldDto> findFields(Class clazz, EntityDto entity) {
+    private Collection<FieldDto> findFields(Class clazz, EntityDto entity, Collection<FieldDto> existFields) {
         fieldProcessor.setClazz(clazz);
         fieldProcessor.setEntity(entity);
-        fieldProcessor.execute(getBundle(), getSchemaHolder());
+        fieldProcessor.setExistFields(existFields);
+        fieldProcessor.execute(getBundle());
         return fieldProcessor.getProcessingResult();
     }
 
     private Collection<String> findFilterableFields(Class clazz) {
         uiFilterableProcessor.setClazz(clazz);
-        uiFilterableProcessor.execute(getBundle(), getSchemaHolder());
+        uiFilterableProcessor.execute(getBundle());
         return uiFilterableProcessor.getProcessingResult();
     }
 
     private Map<String, Long> findDisplayedFields(Class clazz) {
         uiDisplayableProcessor.setClazz(clazz);
-        uiDisplayableProcessor.execute(getBundle(), getSchemaHolder());
+        uiDisplayableProcessor.execute(getBundle());
         return uiDisplayableProcessor.getProcessingResult();
     }
 
@@ -300,13 +282,13 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         restIgnoreProcessor.setClazz(clazz);
         restIgnoreProcessor.setRestOptions(restOptions);
         restIgnoreProcessor.setFields(new ArrayList<>(fields));
-        restIgnoreProcessor.execute(getBundle(), getSchemaHolder());
+        restIgnoreProcessor.execute(getBundle());
         return restIgnoreProcessor.getProcessingResult();
     }
 
     private Map<String, Boolean> findNonEditableFields(Class clazz) {
         nonEditableProcessor.setClazz(clazz);
-        nonEditableProcessor.execute(getBundle(), getSchemaHolder());
+        nonEditableProcessor.execute(getBundle());
         return nonEditableProcessor.getProcessingResult();
     }
 
@@ -353,6 +335,16 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
             }
         }
         return securityMembers;
+    }
+
+    @Autowired
+    public void setEntityService(EntityService entityService) {
+        this.entityService = entityService;
+    }
+
+    @Autowired
+    public void setTypeService(TypeService typeService) {
+        this.typeService = typeService;
     }
 
     @Autowired

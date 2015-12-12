@@ -26,6 +26,7 @@ import org.motechproject.mds.dto.TypeDto;
 import org.motechproject.mds.dto.TypeValidationDto;
 import org.motechproject.mds.dto.ValidationCriterionDto;
 import org.motechproject.mds.ex.field.EnumFieldAccessException;
+import org.motechproject.mds.ex.field.FieldExistInExtendedClassException;
 import org.motechproject.mds.reflections.ReflectionsUtil;
 import org.motechproject.mds.util.Constants;
 import org.motechproject.mds.util.MemberUtil;
@@ -112,6 +113,7 @@ class FieldProcessor extends AbstractListProcessor<Field, FieldDto> {
 
     private EntityDto entity;
     private Class clazz;
+    private Collection<FieldDto> existFields;
 
     @Override
     public Class<Field> getAnnotationType() {
@@ -149,6 +151,14 @@ class FieldProcessor extends AbstractListProcessor<Field, FieldDto> {
             }
 
             String fieldName = MemberUtil.getFieldName(ac);
+
+            if (declaringClass.equals(clazz) && null != existFields) {
+                for (FieldDto existField:existFields) {
+                    if (existField.getBasic().getName().equals(fieldName)) {
+                        throw new FieldExistInExtendedClassException(fieldName, clazz, clazz.getSuperclass());
+                    }
+                }
+            }
 
             FieldDto currentField = getFieldByName(declaringClass.getName(), fieldName);
 
@@ -392,10 +402,16 @@ class FieldProcessor extends AbstractListProcessor<Field, FieldDto> {
 
     @Override
     protected void afterExecution() {
+        existFields = null;
     }
 
     public void setEntity(EntityDto entity) {
         this.entity = entity;
+    }
+
+
+    public void setExistFields(Collection<FieldDto> existFields) {
+        this.existFields = existFields;
     }
 
     public void setClazz(Class clazz) {

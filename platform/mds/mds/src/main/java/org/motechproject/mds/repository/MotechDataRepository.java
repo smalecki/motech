@@ -1,5 +1,8 @@
 package org.motechproject.mds.repository;
 
+import org.motechproject.mds.domain.Entity;
+import org.motechproject.mds.ex.object.ObjectFieldAccessException;
+import org.motechproject.mds.ex.object.ObjectNotContainFieldException;
 import org.motechproject.mds.filter.Filters;
 import org.motechproject.mds.query.Property;
 import org.motechproject.mds.query.QueryExecutor;
@@ -15,6 +18,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Iterator;
+import java.lang.reflect.Field;
 
 /**
  * This is a basic repository class with standard CRUD operations. It should be used by other
@@ -33,6 +38,7 @@ public abstract class MotechDataRepository<T> extends AbstractRepository {
     private Map<String, String> fieldTypeMap;
 
     protected MotechDataRepository(Class<T> classType) {
+
         this.classType = classType;
     }
 
@@ -106,6 +112,28 @@ public abstract class MotechDataRepository<T> extends AbstractRepository {
     public List<T> retrieveAll(String[] properties, Object[] values, InstanceSecurityRestriction restriction) {
         Query query = createQuery(properties, values, restriction);
         Collection collection = (Collection) QueryExecutor.executeWithArray(query, values, restriction);
+
+        for (Iterator iterator = collection.iterator(); iterator.hasNext();) {
+            T object = (T) iterator.next();
+            if (object instanceof Entity) {
+                Class<?> clazz = object.getClass();
+                Field field;
+                try {
+                    field = clazz.getDeclaredField(Entity.EXTENDED_CLASS_FIELD);
+                    field.setAccessible(true);
+                    Object fieldValue = field.get(object);
+                    if (fieldValue != null) {
+                        field = clazz.getDeclaredField(Entity.CLASS_NAME_FIELD);
+                        field.setAccessible(true);
+                        field.set(object, fieldValue);
+                    }
+                } catch (NoSuchFieldException e) {
+                    throw new ObjectNotContainFieldException(e.getCause());
+                } catch (IllegalAccessException e) {
+                    throw new ObjectFieldAccessException(e.getCause());
+                }
+            }
+        }
 
         return new ArrayList<T>(collection);
     }
