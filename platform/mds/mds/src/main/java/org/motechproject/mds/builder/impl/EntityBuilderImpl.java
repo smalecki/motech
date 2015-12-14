@@ -190,6 +190,8 @@ public class EntityBuilderImpl implements EntityBuilder {
                     if (ctField.getDeclaringClass().equals(declaring)) {
                         createSetter(declaring, fieldName, ctField);
                     } else {
+                        CtClass supClass = ctField.getDeclaringClass();
+                        supClass.defrost();
                         createSetter(ctField.getDeclaringClass(), fieldName, ctField);
                     }
                 }

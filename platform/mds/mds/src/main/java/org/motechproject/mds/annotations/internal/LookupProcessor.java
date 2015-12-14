@@ -113,6 +113,10 @@ class LookupProcessor extends AbstractMapProcessor<Lookup, String, List<LookupDt
             lookup.setExposedViaRest(restExposed);
         }
 
+        if (entity.getExtensionClass() != null) {
+            returnClassName = entity.getExtensionClass();
+        }
+
         if (!getElements().containsKey(returnClassName)) {
             put(returnClassName, new ArrayList<LookupDto>());
         }
