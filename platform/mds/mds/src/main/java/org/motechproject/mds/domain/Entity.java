@@ -49,6 +49,7 @@ import static org.motechproject.mds.util.Constants.Util.TRUE;
 public class Entity {
     public final static String CLASS_NAME_FIELD = "className";
     public final static String EXTENDED_CLASS_FIELD = "extendedClass";
+    public final static String SUPER_CLASS_FIELD = "superClass";
 
     @PrimaryKey
     @Persistent(valueStrategy = IdGeneratorStrategy.NATIVE)

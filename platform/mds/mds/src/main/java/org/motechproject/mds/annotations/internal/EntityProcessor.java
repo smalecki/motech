@@ -13,6 +13,7 @@ import org.motechproject.mds.dto.FieldDto;
 import org.motechproject.mds.dto.MetadataDto;
 import org.motechproject.mds.dto.RestOptionsDto;
 import org.motechproject.mds.dto.TrackingDto;
+import org.motechproject.mds.dto.SchemaHolder;
 import org.motechproject.mds.helper.EntityDefaultFieldsHelper;
 import org.motechproject.mds.javassist.MotechClassPool;
 import org.motechproject.mds.reflections.ReflectionsUtil;
@@ -20,6 +21,7 @@ import org.motechproject.mds.util.ClassName;
 import org.motechproject.mds.util.Constants;
 import org.motechproject.mds.util.SecurityMode;
 import org.motechproject.osgi.web.util.BundleHeaders;
+import org.osgi.framework.Bundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +60,7 @@ import static org.motechproject.mds.util.Constants.AnnotationFields.TABLE_NAME;
 class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EntityProcessor.class);
 
-    private FieldProcessor fieldProcessor;
+    protected FieldProcessor fieldProcessor;
     private UIFilterableProcessor uiFilterableProcessor;
     private UIDisplayableProcessor uiDisplayableProcessor;
     private RestIgnoreProcessor restIgnoreProcessor;
@@ -66,7 +68,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
     private CrudEventsProcessor crudEventsProcessor;
     private NonEditableProcessor nonEditableProcessor;
 
-    private List<EntityProcessorOutput> processingResult;
+    protected List<EntityProcessorOutput> processingResult;
 
     @Override
     public Class<Entity> getAnnotationType() {
@@ -136,8 +138,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
 
                 //if entity was extend, revert changes, until entityExtensionProcessor will start.
                 //necessary, because we don't know if this entity is still extended
-                if (!className.equals(entity.getClassName())) {
-                    entity.setClassName(className);
+                if (entity.getExtensionClass() != null) {
                     entity.setExtensionClass(null);
                 }
             }
@@ -174,7 +175,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         }
     }
 
-    private void addVersionMetadata(Collection<FieldDto> fields, String versionField) {
+    protected void addVersionMetadata(Collection<FieldDto> fields, String versionField) {
         if (StringUtils.isNotBlank(versionField)) {
             for (FieldDto fieldDto : fields) {
                 if (fieldDto.getBasic().getName().equals(versionField)) {
@@ -184,7 +185,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         }
     }
 
-    private String getVersionFieldName(Class clazz) {
+    protected String getVersionFieldName(Class clazz) {
         if (MdsVersionedEntity.class.getName().equalsIgnoreCase(clazz.getSuperclass().getName())) {
             return "instanceVersion";
         }
@@ -198,21 +199,21 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         return null;
     }
 
-    private void setMaxFetchDepth(EntityDto entity, Annotation annotation) {
+    protected void setMaxFetchDepth(EntityDto entity, Annotation annotation) {
         int maxFetchDepth = Integer.parseInt(ReflectionsUtil.getAnnotationValue(annotation, MAX_FETCH_DEPTH));
         if (maxFetchDepth != Constants.FetchDepth.MDS_DEFAULT) {
             entity.setMaxFetchDepth(maxFetchDepth);
         }
     }
 
-    private void addDefaultFields(EntityDto entity, Collection<FieldDto> fields) {
+    protected void addDefaultFields(EntityDto entity, Collection<FieldDto> fields) {
         if (!MdsEntity.class.getName().equalsIgnoreCase(entity.getSuperClass()) &&
                 !MdsVersionedEntity.class.getName().equalsIgnoreCase(entity.getSuperClass())) {
             fields.addAll(EntityDefaultFieldsHelper.defaultFields(getSchemaHolder()));
         }
     }
 
-    private void updateResults(EntityProcessorOutput entityProcessorOutput, Class<?> clazz, Collection<FieldDto> fields,
+    protected void updateResults(EntityProcessorOutput entityProcessorOutput, Class<?> clazz, Collection<FieldDto> fields,
                                RestOptionsDto restOptions, TrackingDto tracking, String versionField) {
         entityProcessorOutput.setFieldProcessingResult(fields);
 
@@ -230,7 +231,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         entityProcessorOutput.setNonEditableProcessingResult(nonEditableFields);
     }
 
-    private void updateUiChangedFields(Collection<FieldDto> fieldsToUpdate, String entityClassName) {
+    protected void updateUiChangedFields(Collection<FieldDto> fieldsToUpdate, String entityClassName) {
         if (getSchemaHolder().getEntityByClassName(entityClassName) != null) {
             List<FieldDto> currentFields = getSchemaHolder().getFields(entityClassName);
             for (FieldDto field : fieldsToUpdate) {
@@ -252,10 +253,15 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         return null;
     }
 
-    @Override
-    protected void beforeExecution() {
-        processingResult = new ArrayList<>();
-        super.beforeExecution();
+    public void execute(Bundle bundle, SchemaHolder schemaHolder, boolean newResult) {
+        if (newResult) {
+            processingResult = new ArrayList<>();
+        }
+        super.execute(bundle, schemaHolder);
+    }
+
+    public void execute(Bundle bundle, SchemaHolder schemaHolder) {
+        execute(bundle, schemaHolder, true);
     }
 
     @Override
@@ -263,7 +269,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         LOGGER.debug("Execution complete for bundle {}", getBundle().getSymbolicName());
     }
 
-    private RestOptionsDto processRestOperations(Class clazz, RestOptionsDto restOptions) {
+    protected RestOptionsDto processRestOperations(Class clazz, RestOptionsDto restOptions) {
         restOperationsProcessor.setClazz(clazz);
         restOperationsProcessor.setRestOptions(restOptions);
         restOperationsProcessor.execute(getBundle(), getSchemaHolder());
@@ -277,7 +283,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         return crudEventsProcessor.getProcessingResult();
     }
 
-    private Collection<FieldDto> findFields(Class clazz, EntityDto entity) {
+    protected Collection<FieldDto> findFields(Class clazz, EntityDto entity) {
         fieldProcessor.setClazz(clazz);
         fieldProcessor.setEntity(entity);
         fieldProcessor.execute(getBundle(), getSchemaHolder());
@@ -296,7 +302,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         return uiDisplayableProcessor.getProcessingResult();
     }
 
-    private RestOptionsDto findRestFields(Class clazz, RestOptionsDto restOptions, Collection<FieldDto> fields) {
+    protected RestOptionsDto findRestFields(Class clazz, RestOptionsDto restOptions, Collection<FieldDto> fields) {
         restIgnoreProcessor.setClazz(clazz);
         restIgnoreProcessor.setRestOptions(restOptions);
         restIgnoreProcessor.setFields(new ArrayList<>(fields));
@@ -310,7 +316,7 @@ class EntityProcessor extends AbstractListProcessor<Entity, EntityDto> {
         return nonEditableProcessor.getProcessingResult();
     }
 
-    private void setSecurityOptions(AnnotatedElement element, EntityDto entity) {
+    protected void setSecurityOptions(AnnotatedElement element, EntityDto entity) {
         Access access = element.getAnnotation(Access.class);
         ReadAccess readAccess = element.getAnnotation(ReadAccess.class);
         if (null != access && !entity.isSecurityOptionsModified()) {

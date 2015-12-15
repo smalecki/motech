@@ -953,6 +953,33 @@ public class EntityServiceImpl implements EntityService {
         stopWatch.start();
         List<Entity> entities = allEntities.retrieveAll();
         stopWatch.stop();
+        for (int i =0; i< entities.size(); i++) {
+            Entity entity = entities.get(i);
+            if (entity.getExtendedClass() != null && entity.getId() != null) {
+                //copy entity and set it as superclass of copied entity
+                Entity exEntity = new Entity(entity.getClassName(), entity.getName(), entity.getModule(), entity.getNamespace(),
+                        entity.getSecurityMode(), entity.getSecurityMembers(), entity.getReadOnlySecurityMode(), entity.getReadOnlySecurityMembers(),
+                        entity.getBundleSymbolicName());
+                exEntity.setClassName(entity.getExtendedClass().split(":")[1]);
+                exEntity.setSuperClass(entity.getExtendedClass().split(":")[2]);
+                exEntity.setFields(entity.getFields());
+                exEntity.setLookups(entity.getLookups());
+                exEntity.setRestOptions(entity.getRestOptions());
+                exEntity.setTracking(entity.getTracking());
+                exEntity.setDrafts(entity.getDrafts());
+                exEntity.setTableName(entity.getTableName());
+                exEntity.setMaxFetchDepth(entity.getMaxFetchDepth());
+
+                entities.add(exEntity);
+            } else if (entity instanceof EntityDraft) {
+                for (Entity en : entities) {
+                    if (en.getClassName().equals(entity.getClassName())
+                        && en.getExtendedClass() != null) {
+                        entity.setSuperClass(en.getSuperClass());
+                    }
+                }
+            }
+        }
 
         LOGGER.debug("{} entities retrieved in {} ms", entities.size(), stopWatch.getTime());
 

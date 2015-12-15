@@ -309,13 +309,13 @@ public class MdsBundleWatcher implements SynchronousBundleListener {
                 entity = entityService.createEntity(processedEntity);
                 newEntities.add(entity.getClassName());
             } else if (entity.getExtensionClass() != null) {
-                entity.setClassName(processedEntity.getClassName());
-                if (!entity.getExtensionClass().equals(processedEntity.getExtensionClass())) {
+                //entity.setClassName(processedEntity.getClassName());
+                if (!entity.getClassName().equals(processedEntity.getExtensionClass())) {
                     entityService.updateExtensionClass(entity.getId(), processedEntity.getExtensionClass());
                 }
             }
             if (entity.getExtensionClass() != null) {
-                entityIdMappings.put(entity.getExtensionClass(), entity.getId());
+                entityIdMappings.put(entity.getExtensionClass().split(":")[0], entity.getId());
             } else {
                 entityIdMappings.put(entity.getClassName(), entity.getId());
             }

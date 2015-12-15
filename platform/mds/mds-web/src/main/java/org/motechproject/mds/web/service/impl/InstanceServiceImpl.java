@@ -233,7 +233,7 @@ public class InstanceServiceImpl implements InstanceService {
 
         MotechDataService service = getServiceForEntity(entity);
         List<FieldDto> fields = entityService.getEntityFieldsForUI(entityId);
-        Object instance = trashService.findTrashById(instanceId,  entity.getClassName());
+        Object instance = trashService.findTrashById(instanceId, entity.getClassName());
 
         return instanceToRecord(instance, entity, fields, service, EntityType.TRASH);
     }
@@ -579,7 +579,12 @@ public class InstanceServiceImpl implements InstanceService {
     }
 
     private MotechDataService getServiceForEntity(EntityDto entity) {
-        String className = entity.getClassName();
+        String className;
+        if (entity.getExtensionClass() != null) {
+            className = entity.getSuperClass();
+        } else {
+            className = entity.getClassName();
+        }
         return DataServiceHelper.getDataService(bundleContext, className);
     }
 

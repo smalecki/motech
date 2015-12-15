@@ -79,7 +79,12 @@ public class ComboboxValueServiceImpl implements ComboboxValueService {
                 List<String> optionsFromDb;
 
                 if (cbHolder.isAllowMultipleSelections()) {
-                    String cbTableName = metadataService.getComboboxTableName(entityDto.getClassName(), fieldDto.getBasic().getName());
+                    String cbTableName;
+                    if (entityDto.getExtensionClass() != null) {
+                        cbTableName = metadataService.getComboboxTableName(entityDto.getSuperClass(), fieldDto.getBasic().getName());
+                    } else {
+                        cbTableName = metadataService.getComboboxTableName(entityDto.getClassName(), fieldDto.getBasic().getName());
+                    }
                     optionsFromDb = cbValueRepository.getComboboxValuesForCollection(cbTableName);
                 } else {
                     optionsFromDb = cbValueRepository.getComboboxValuesForStringField(entityDto, fieldDto);

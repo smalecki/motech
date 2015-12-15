@@ -38,7 +38,7 @@ public class MDSAnnotationProcessor {
         entityProcessor.execute(bundle, schemaHolder);
         List<EntityProcessorOutput> entityProcessorOutput = entityProcessor.getProcessingResult();
 
-        entityExtensionProcessor.execute(bundle, entityProcessorOutput);
+        entityExtensionProcessor.execute(bundle, schemaHolder, entityProcessorOutput);
         entityProcessorOutput = entityExtensionProcessor.getProcessingResult();
 
         lookupProcessor.setEntityProcessingResult(entityProcessorOutput);

@@ -1,6 +1,8 @@
 package org.motechproject.mds.repository;
 
 import org.motechproject.mds.domain.Entity;
+import org.motechproject.mds.domain.EntityAudit;
+import org.motechproject.mds.domain.EntityDraft;
 import org.motechproject.mds.ex.object.ObjectFieldAccessException;
 import org.motechproject.mds.ex.object.ObjectNotContainFieldException;
 import org.motechproject.mds.filter.Filters;
@@ -115,17 +117,27 @@ public abstract class MotechDataRepository<T> extends AbstractRepository {
 
         for (Iterator iterator = collection.iterator(); iterator.hasNext();) {
             T object = (T) iterator.next();
-            if (object instanceof Entity) {
+            if (object instanceof Entity
+                    && !(object instanceof EntityDraft || object instanceof EntityAudit)) {
                 Class<?> clazz = object.getClass();
                 Field field;
                 try {
                     field = clazz.getDeclaredField(Entity.EXTENDED_CLASS_FIELD);
                     field.setAccessible(true);
                     Object fieldValue = field.get(object);
-                    if (fieldValue != null) {
+                    if (fieldValue != null && (String.valueOf(fieldValue).split(":").length == 1)) {
+                        String extendedClass = String.valueOf(fieldValue);
                         field = clazz.getDeclaredField(Entity.CLASS_NAME_FIELD);
                         field.setAccessible(true);
+                        String className = String.valueOf(field.get(object));
                         field.set(object, fieldValue);
+                        field = clazz.getDeclaredField(Entity.SUPER_CLASS_FIELD);
+                        field.setAccessible(true);
+                        String superClass = String.valueOf(field.get(object));
+                        field.set(object, className);
+                        field = clazz.getDeclaredField(Entity.EXTENDED_CLASS_FIELD);
+                        field.setAccessible(true);
+                        field.set(object, extendedClass + ":" + className + ":" + superClass);
                     }
                 } catch (NoSuchFieldException e) {
                     throw new ObjectNotContainFieldException(e.getCause());

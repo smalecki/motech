@@ -288,9 +288,12 @@ public class JarGeneratorServiceImpl implements JarGeneratorService {
 
             for (ClassData classData : MotechClassPool.getEnhancedClasses(false)) {
                 String className = classData.getClassName();
-                if (className.equals("org.motechproject.email.domain.EmailRecordExtension")
-                        || className.equals("org.motechproject.security.domain.MotechUserExtension")) {
-                    continue;
+
+                if (!classData.isEnumClassData()) {
+                    EntityDto entity = schemaHolder.getEntityByClassName(classData.getClassName());
+                    if (entity.getExtensionClass() != null) {
+                        continue;
+                    }
                 }
 
                 // insert entity class, only for EUDE, note that this can also be a generated enum class

@@ -96,24 +96,6 @@ public class MDSConstructorImpl implements MDSConstructor {
         // process only entities that are not drafts
         List<EntityDto> entities = schemaHolder.getAllEntities();
 
-        for (int i = 0; i< entities.size(); i++) {
-            EntityDto entity = entities.get(i);
-            if (entity.getClassName().equals("org.motechproject.email.domain.EmailRecordExtension")) {
-                EntityDto en = new EntityDto("org.motechproject.email.domain.EmailRecord", entity.getName(),
-                        entity.getModule(), entity.getNamespace(), entity.getSecurityMode(), entity.getReadOnlySecurityMembers());
-                entity.setSuperClass("org.motechproject.email.domain.EmailRecord");
-                //en.setFields(entity.getFields());
-                entities.add(en);
-            }
-            if (entity.getClassName().equals("org.motechproject.security.domain.MotechUserExtension")) {
-                EntityDto en = new EntityDto("org.motechproject.security.domain.MotechUser", entity.getName(),
-                        entity.getModule(), entity.getNamespace(), entity.getSecurityMode(), entity.getReadOnlySecurityMembers());
-                entity.setSuperClass("org.motechproject.security.domain.MotechUser");
-                //en.setFields(entity.getFields());
-                entities.add(en);
-            }
-        }
-
         filterEntities(entities);
         sortEntities(entities, schemaHolder);
 
