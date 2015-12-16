@@ -99,7 +99,12 @@ public class EntityMetadataBuilderImpl implements EntityMetadataBuilder {
     public void addEntityMetadata(JDOMetadata jdoMetadata, EntityDto entity, Class<?> definition, SchemaHolder schemaHolder) {
         String className = (entity.isDDE()) ? entity.getClassName() : ClassName.getEntityClassName(entity.getClassName());
         String packageName = ClassName.getPackage(className);
-        String tableName = ClassTableName.getTableName(entity.getClassName(), entity.getModule(), entity.getNamespace(), entity.getTableName(), null);
+        String tableName;
+        if (entity.getExtensionClass() != null) {
+            tableName = ClassTableName.getTableName(entity.getSuperClass(), entity.getModule(), entity.getNamespace(), entity.getTableName(), null);
+        } else {
+            tableName = ClassTableName.getTableName(entity.getClassName(), entity.getModule(), entity.getNamespace(), entity.getTableName(), null);
+        }
 
         PackageMetadata pmd = getPackageMetadata(jdoMetadata, packageName);
         ClassMetadata cmd = getClassMetadata(pmd, ClassName.getSimpleName(ClassName.getEntityClassName(entity.getClassName())));

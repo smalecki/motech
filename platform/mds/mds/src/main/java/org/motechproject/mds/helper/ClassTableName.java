@@ -54,7 +54,12 @@ public final class ClassTableName {
      * @return parsed table name
      */
     public static String getTableName(Entity entity, EntityType type) {
-        String tableName = getTableName(entity.getClassName(), entity.getModule(), entity.getNamespace(), entity.getTableName(), type);
+        String tableName;
+        if (entity.getExtendedClass() != null) {
+            tableName = getTableName(entity.getSuperClass(), entity.getModule(), entity.getNamespace(), entity.getTableName(), type);
+        } else {
+            tableName = getTableName(entity.getClassName(), entity.getModule(), entity.getNamespace(), entity.getTableName(), type);
+        }
         if (type == EntityType.STANDARD) {
             return tableName;
         }

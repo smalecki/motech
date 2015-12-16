@@ -23,6 +23,12 @@ public class SchemaHolder {
 
     public void addEntity(EntityDto entity, AdvancedSettingsDto advancedSettings,
                           List<FieldDto> fields) {
+
+        //drafts (without extensionclass field) override previous entity in map with the same classname
+        if (entityMap.containsKey(entity.getClassName())
+                && entityMap.get(entity.getClassName()).getEntity().getExtensionClass() != null) {
+            entity.setExtensionClass(entityMap.get(entity.getClassName()).getEntity().getExtensionClass());
+        }
         EntityHolder entityHolder = new EntityHolder(entity, advancedSettings, fields);
         entityMap.put(entityHolder.getEntityClassName(), entityHolder);
     }

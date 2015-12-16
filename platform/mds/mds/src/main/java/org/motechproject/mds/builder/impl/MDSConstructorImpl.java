@@ -307,7 +307,12 @@ public class MDSConstructorImpl implements MDSConstructor {
     @Transactional("dataTransactionManager")
     public void updateFields(Entity entity, Map<String, String> fieldNameChanges) {
         for (String key : fieldNameChanges.keySet()) {
-            String tableName = ClassTableName.getTableName(entity.getClassName(), entity.getModule(), entity.getNamespace(), entity.getTableName(), null);
+            String tableName;
+            if (entity.getExtendedClass() != null) {
+                tableName = ClassTableName.getTableName(entity.getSuperClass(), entity.getModule(), entity.getNamespace(), entity.getTableName(), null);
+            } else {
+                tableName = ClassTableName.getTableName(entity.getClassName(), entity.getModule(), entity.getNamespace(), entity.getTableName(), null);
+            }
             updateFieldName(key, fieldNameChanges.get(key), tableName);
             if (entity.isRecordHistory()) {
                 updateFieldName(key, fieldNameChanges.get(key), ClassTableName.getTableName(entity, EntityType.HISTORY));
