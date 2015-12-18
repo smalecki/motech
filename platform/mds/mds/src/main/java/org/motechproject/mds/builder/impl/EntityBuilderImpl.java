@@ -64,7 +64,12 @@ public class EntityBuilderImpl implements EntityBuilder {
 
     @Override
     public void prepareHistoryClass(EntityDto entity) {
-        String className = entity.getClassName();
+        String className;
+        if (entity.getExtensionClass() != null) {
+            className = entity.getSuperClass();
+        } else {
+            className = entity.getClassName();
+        }
         LOGGER.debug("Building empty history class for: {}", className);
 
         String historyClassName = ClassName.getHistoryClassName(className);
@@ -81,7 +86,12 @@ public class EntityBuilderImpl implements EntityBuilder {
 
     @Override
     public void prepareTrashClass(EntityDto entity) {
-        String className = entity.getClassName();
+        String className;
+        if (entity.getExtensionClass() != null) {
+            className = entity.getSuperClass();
+        } else {
+            className = entity.getClassName();
+        }
         LOGGER.debug("Building empty trash class for: {}", className);
 
         String trashClassName = ClassName.getTrashClassName(className);

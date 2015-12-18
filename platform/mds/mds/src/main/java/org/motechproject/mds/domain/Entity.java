@@ -387,6 +387,22 @@ public class Entity {
         return fields;
     }
 
+    public List<Field> getNotExtendedFields() {
+        if (fields == null) {
+            fields = new ArrayList<>();
+        } else {
+            List<Field> notExtendedFields = new ArrayList<>();;
+            for (int i=fields.size(); i > 0; i--) {
+                Field field = fields.get(i-1);
+                if (!field.isExtendedEntity()) {
+                    notExtendedFields.add(field);
+                }
+            }
+            return notExtendedFields;
+        }
+        return fields;
+    }
+
     public List<Field> getStringComboboxFields() {
         List<Field> comboboxStringFields = new ArrayList<>();
 

@@ -109,12 +109,15 @@ public class Field {
     @Persistent(mappedBy = "fields")
     private Set<Lookup> lookups = new HashSet<>();
 
+    @Persistent
+    private boolean extendedEntity;
+
     public Field() {
         this(null, null, null);
     }
 
     public Field(Entity entity, String name, String displayName) {
-        this(entity, name, displayName, false, false, false, false, false, null, null, null, null);
+        this(entity, name, displayName, false, false, false, false, false, null, null, null, null, false);
     }
 
     public Field(Entity entity, String name, String displayName, Type type) {
@@ -122,31 +125,31 @@ public class Field {
     }
 
     public Field(Entity entity, String name, String displayName, Set<Lookup> lookups) {
-        this(entity, name, displayName, false, false, false, false, false, null, null, null, lookups);
+        this(entity, name, displayName, false, false, false, false, false, null, null, null, lookups, false);
     }
 
     public Field(Entity entity, String name, String displayName, Type type, boolean required, boolean unique, boolean readOnly) {
-        this(entity, name, displayName, required, unique, readOnly, false, false, null, null, null, null);
+        this(entity, name, displayName, required, unique, readOnly, false, false, null, null, null, null, false);
         this.type = type;
     }
 
     public Field(Entity entity, String name, String displayName, boolean required, boolean unique,
                  boolean readOnly, boolean nonEditable, boolean nonDisplayable, String defaultValue,
-                 String tooltip, String placeholder, Set<Lookup> lookups) {
+                 String tooltip, String placeholder, Set<Lookup> lookups, boolean extendedEntity) {
         this(entity, name, displayName, required, unique, readOnly, nonEditable, nonDisplayable, false, defaultValue, tooltip,
-                placeholder, lookups);
+                placeholder, lookups, extendedEntity);
     }
 
     public Field(Entity entity, String name, String displayName, boolean required, boolean unique,
                  boolean readOnly, boolean nonEditable, boolean nonDisplayable, boolean uiChanged, String defaultValue,
-                 String tooltip, String placeholder, Set<Lookup> lookups) {
+                 String tooltip, String placeholder, Set<Lookup> lookups, boolean extendedEntity) {
         this(entity, name, displayName, required, unique, readOnly, nonEditable, nonDisplayable, false, uiChanged, defaultValue,
-                tooltip, placeholder, lookups);
+                tooltip, placeholder, lookups, extendedEntity);
     }
 
     public Field(Entity entity, String name, String displayName, boolean required, boolean unique,
                  boolean readOnly, boolean nonEditable, boolean nonDisplayable, boolean uiFilterable, boolean uiChanged,
-                 String defaultValue, String tooltip, String placeholder, Set<Lookup> lookups) {
+                 String defaultValue, String tooltip, String placeholder, Set<Lookup> lookups, boolean extendedEntity) {
         this.entity = entity;
         this.displayName = displayName;
         setName(name);
@@ -164,6 +167,7 @@ public class Field {
                 ? lookups
                 : new HashSet<Lookup>();
         this.exposedViaRest = true;
+        this.extendedEntity = extendedEntity;
     }
 
     public List<SettingDto> settingsToDto() {
@@ -209,7 +213,7 @@ public class Field {
         }
 
         return new FieldDto(id, entity == null ? null : entity.getId(), typeDto, basic, readOnly, nonEditable,
-                nonDisplayable, uiFilterable, uiChanged, metaDto, validationDto, settingsDto, lookupDtos);
+                nonDisplayable, uiFilterable, uiChanged, metaDto, validationDto, settingsDto, lookupDtos, extendedEntity);
     }
 
     private Object parseDefaultValue() {
@@ -497,6 +501,14 @@ public class Field {
         this.nonDisplayable = nonDisplayable;
     }
 
+    public boolean isExtendedEntity() {
+        return extendedEntity;
+    }
+
+    public void setExtendedEntity(boolean extendedEntity) {
+        this.extendedEntity = extendedEntity;
+    }
+
     public Field update(FieldDto field) {
         setDisplayName(field.getBasic().getDisplayName());
         setName(field.getBasic().getName());
@@ -509,6 +521,7 @@ public class Field {
         setNonDisplayable(field.isNonDisplayable());
         setUIFilterable(field.isUiFilterable());
         setUiChanged(field.isUiChanged());
+        setExtendedEntity(field.isExtendedEntity());
 
         if (field.getBasic().getDefaultValue() != null) {
             this.setDefaultValue(field.getBasic().getDefaultValue().toString());

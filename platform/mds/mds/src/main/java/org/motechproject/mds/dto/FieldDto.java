@@ -31,6 +31,7 @@ public class FieldDto {
     private FieldValidationDto validation;
     private List<SettingDto> settings;
     private List<LookupDto> lookups;
+    private boolean extendedEntity;
 
     public FieldDto() {
         this(null, null, null, null, false, false, true, null, null, null, null);
@@ -71,7 +72,7 @@ public class FieldDto {
                     boolean nonDisplayable, boolean uiChanged, List<MetadataDto> metadata, FieldValidationDto validation,
                     List<SettingDto> settings, List<LookupDto> lookups) {
         this(id, entityId, type, basic, readOnly, nonEditable, nonDisplayable, false, uiChanged, metadata, validation,
-                settings, lookups);
+                settings, lookups, false);
     }
 
     public FieldDto(Long id, Long entityId, TypeDto type, FieldBasicDto basic, boolean readOnly, FieldValidationDto validation) {
@@ -85,7 +86,7 @@ public class FieldDto {
 
     public FieldDto(Long id, Long entityId, TypeDto type, FieldBasicDto basic, boolean readOnly, boolean nonEditable,
                     boolean nonDisplayable, boolean uiFilterable, boolean uiChanged, List<MetadataDto> metadata,
-                    FieldValidationDto validation, List<SettingDto> settings, List<LookupDto> lookups) {
+                    FieldValidationDto validation, List<SettingDto> settings, List<LookupDto> lookups, boolean extendedEntity) {
         this.id = id;
         this.entityId = entityId;
         this.type = type;
@@ -105,6 +106,7 @@ public class FieldDto {
         this.lookups = CollectionUtils.isEmpty(lookups)
                 ? new LinkedList<LookupDto>()
                 : lookups;
+        this.extendedEntity = extendedEntity;
     }
 
     public boolean multiSelect() {
@@ -154,6 +156,14 @@ public class FieldDto {
 
     public void setReadOnly(boolean readOnly) {
         this.readOnly = readOnly;
+    }
+
+    public boolean isExtendedEntity() {
+        return extendedEntity;
+    }
+
+    public void setExtendedEntity(boolean extendedEntity) {
+        this.extendedEntity = extendedEntity;
     }
 
     public void addEmptyMetadata() {

@@ -151,6 +151,7 @@ class FieldProcessor extends AbstractListProcessor<Field, FieldDto> {
             }
 
             String fieldName = MemberUtil.getFieldName(ac);
+            boolean extendedEntity = false;
 
             if (declaringClass.equals(clazz) && null != existFields) {
                 for (FieldDto existField:existFields) {
@@ -158,6 +159,7 @@ class FieldProcessor extends AbstractListProcessor<Field, FieldDto> {
                         throw new FieldExistInExtendedClassException(fieldName, clazz, clazz.getSuperclass());
                     }
                 }
+                extendedEntity = true;
             }
 
             FieldDto currentField = getFieldByName(declaringClass.getName(), fieldName);
@@ -217,6 +219,7 @@ class FieldProcessor extends AbstractListProcessor<Field, FieldDto> {
             field.setNonDisplayable(false);
             field.setUiChanged(isUiChanged(currentField));
             field.setUiFilterable(isUiFilterable(currentField));
+            field.setExtendedEntity(extendedEntity);
 
             setFieldSettings(ac, classType, isRelationship, isTextArea, field);
             setFieldMetadata(classType, genericType, valueType, isCollection, isRelationship, relatedFieldIsCollection,
